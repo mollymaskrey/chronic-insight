@@ -38,7 +38,7 @@ This project visualizes CDC chronic disease prevalence across the U.S. using a *
 
 ```
 chronic-insight/
-├── app.py             # Main Dash app with Ray and OpenAI integration
+├── dash7par.py             # Main Dash app with Ray and OpenAI integration
 └── assets/
     └── styles.css     # Optional Dash customization
 ```
@@ -62,7 +62,7 @@ Install dependencies:
 pip install dash plotly ray openai pandas geopandas
 
 ## ⚡ Run The App
-python app.py
+python dash7par.py
 
 
 You’ll need an OpenAI API key—store it as an environment variable OPENAI_API_KEY.
