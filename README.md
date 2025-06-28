@@ -10,6 +10,8 @@
 This project visualizes CDC chronic disease prevalence across the U.S. using a **scalable, interactive dashboard**. Unlike traditional BI tools like Tableau, this app is fully code-driven, lightning-fast (thanks to Ray), and conversational—powered by OpenAI for natural language querying.
 
 ---
+![Choropleth Dashboard Preview](./assets/dashboard-screenshot.png)
+
 
 ## 🔧 Core Features
 
