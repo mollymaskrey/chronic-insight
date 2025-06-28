@@ -34,12 +34,15 @@ This project visualizes CDC chronic disease prevalence across the U.S. using a *
 
 ---
 
-## 📦 Folder Structure
+## 🗂️ Folder Structure
+
+```
 chronic-insight/
 ├── app.py             # Main Dash app with Ray and OpenAI integration
 └── assets/
     └── styles.css     # Optional Dash customization
----
+```
+
 
 ## 🧠 Example AI Queries
 
