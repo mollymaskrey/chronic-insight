@@ -234,8 +234,8 @@ cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measur
 cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measure_id'] == "DENTAL"]['value'])
 cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measure_id'] == "BPMED"]['value'])
 
-
-geo_df = gpd.read_file('cb_2020_us_county_20m/cb_2020_us_county_20m.shp')
+# no longer use shapefiles
+#geo_df = gpd.read_file('cb_2020_us_county_20m/cb_2020_us_county_20m.shp')
 with open("cdc_data.geojson") as geofile:
     map_df = json.load(geofile)
 
