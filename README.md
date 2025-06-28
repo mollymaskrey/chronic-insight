@@ -35,12 +35,8 @@ This project visualizes CDC chronic disease prevalence across the U.S. using a *
 ---
 
 ## 📦 Folder Structure
-cdc-disease-maps/
-├── app.py # Main Dash app with AI + UI
-├── query_interface.py # OpenAI language model handler
-├── map_generator.py # Ray parallel compute functions
-├── utils/ # Helpers for data loading, scaling, parsing
-├── data/ # Publicly available CDC chronic disease datasets
+chronic-insight/
+├── app7.py # Main Dash app with AI + UI
 └── assets/ # Dash CSS customization
 
 
