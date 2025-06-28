@@ -11,7 +11,7 @@ container = {
 }
 
 map = {
-    'width': '892px',
+    'width': '898px',
     'height': '596px',
     'padding': '2px',
     'backgroundColor': "black",
@@ -23,7 +23,7 @@ map = {
 }
 
 map_plot = {
-    'width': '888px',
+    'width': '894px',
     'height': '592px',
     'padding': '2px',
     'backgroundColor': "black",
@@ -67,7 +67,7 @@ disease = {
 state = {
     'width': 'auto',
     'margin':'auto',
-    'height': '215px',
+    'height': '170px',
     'overflow':'auto',
     'padding': '2px',
     'align':'center',
@@ -82,35 +82,35 @@ state = {
 }
 
 button1 = {
-    'width': '100px',
+    'width': '97px',
     'margin-top':'2px',
-    'height': '35px',
-    'padding': '2px',
+    'height': '26px',
+    'padding': '1px',
     'align':'center',
     'background': 'black',
     'color':'white',
     'vertical-align':'bottom',
-    'font-size':'16px',
+    'font-size':'12px',
     'text-align':'center',
-    'border':'2px white solid',
+    'border':'1px white solid',
     'font-family':'Arial',
-    'font-weight':'bold'
+    'font-weight':'normal'
 
 }
 button2 = {
-    'width': '100px',
+    'width': '97px',
     'margin-top':'2px',
-    'height': '35px',
-    'padding': '2px',
+    'height': '26px',
+    'padding': '1px',
     'align':'center',
     'background': 'black',
     'color':'white',
     'vertical-align':'bottom',
-    'font-size':'16px',
+    'font-size':'12px',
     'text-align':'center',
-    'border':'2px white solid',
+    'border':'1px white solid',
     'font-family':'Arial',
-    'font-weight':'bold'
+    'font-weight':'normal'
 
 }
 
@@ -124,7 +124,7 @@ quantiles = {
     'align':'center',
     'color':'white',
     'vertical-align':'bottom',
-    'font-size':'18px',
+    'font-size':'14px',
     'text-align':'left',
     'border':'2px white solid',
     'font-family':'Arial'
@@ -157,7 +157,7 @@ header =  {
 control_labels = {
     'font-family':'Arial',
     'color':'gray',
-    'font-size':'18px',
+    'font-size':'16px',
     'font-weight':'bold',
     'text-align':'center',
     'vertical-align':'middle',
@@ -183,6 +183,19 @@ tabs_container = {
     'width' : '1208px'
 }
 
+popover_container = {
+    'maxHeight': '700px', 
+    'overflowY': 'auto', 
+    'width': '800px',
+    'whiteSpace': 'pre-wrap',
+    'wordWrap': 'break-word',
+    'wordBreak': 'normal',
+    'padding': '10px',
+    'boxSizing': 'border-box',
+    'display': 'block'
+}
+
+
 import dash
 from dash import dash_table, callback_context
 #import dash_core_components as dcc
@@ -201,14 +214,23 @@ import geopandas as gpd
 import plotly.graph_objects as go
 import plotly.express as px
 from dash.dependencies import Output, Input, State
+import dash_bootstrap_components as dbc  # Make sure this import is here
 
 import ray
 
-cdc_data_original = pd.read_csv('cdc_2019_summary.csv', converters = {'fips': str})
+import openai
+from openai import OpenAI
+import base64
+
+# HTTP Authentication
+
+
+cdc_data_original = pd.read_csv('cdc_2021_summarya.csv', converters = {'fips': str})
 # First pull a list of all unique fips codes
 sorted_fips = cdc_data_original['fips']
 sorted_fips = sorted_fips.unique()
 sorted_fips.sort()
+
 
 # Convert to Fractions for extimating quantiles
 cdc_data_original['value'] = cdc_data_original['value']/ 100
@@ -234,8 +256,12 @@ cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measur
 cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measure_id'] == "DENTAL"]['value'])
 cdc_data_original.loc['value'] =(1 - cdc_data_original[cdc_data_original['measure_id'] == "BPMED"]['value'])
 
-# no longer use shapefiles
-#geo_df = gpd.read_file('cb_2020_us_county_20m/cb_2020_us_county_20m.shp')
+# Declare the global variables
+disease_list = []
+full_table = pd.DataFrame()
+
+
+geo_df = gpd.read_file('cb_2022_us_county_20m/cb_2022_us_county_20m.shp')
 with open("cdc_data.geojson") as geofile:
     map_df = json.load(geofile)
 
@@ -301,33 +327,171 @@ def calculate_by_condition(condition,in_df,use_quartile):
     #print(ranked_df)
     return ranked_df
 
-def calculate_county_rank(cdc_df,conditions=[],fips=[]):
+### GET DATA ABOUT THE MAP
+def call_openai_1():
+    # Your OpenAI function logic here
+    # Save the figure as a PNG file
+    print("Function call_openai_1 executed")
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY') )
+
+    conditions_string = ", ".join(disease_list)
+    print(conditions_string)
+    result_string = f"Provide a brief three sentence description of the condition {conditions_string} .\
+                 For the condition {conditions_string} and the provided image file, write a detailed description of the regional concerns\
+                    related to the values for {conditions_string} as depicted by the heatmap. Provide any additional insights about other\
+                    factors such as environmental or social determinants of health that could affect areas with higher rates of {conditions_string}."
+    print(result_string)
+    # Read the content of the file
+    import base64
+
+    MODEL="gpt-4o"
+
+    current_dir = os.path.dirname(__file__)
+    file_path = os.path.join(current_dir, "cdc_map_fig.png")
+    #IMAGE_PATH = "image_path"
+
+    # Open the image file and encode it as a base64 string
+    def encode_image(file_path):
+        with open(file_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
+
+    base64_image = encode_image(file_path)
+
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that responds in Markdown."},
+            {"role": "user", "content": [
+                {"type": "text", "text": result_string},
+                {"type": "image_url", "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"}
+                }
+            ]}
+        ],
+        temperature=0.0,
+    )
+    #print(f"Full response: {response}")  # Print the entire response to understand its structure
+    #return response['choices'][0]['message']['content']
+    message_content  = response.choices[0].message.content
+    return message_content
+
+def call_openai_2(prompt):
+    # Function logic to interact with OpenAI API
+    conditions_string = ", ".join(disease_list)  # Get the current disease
+
+    print("Function call_openai_2 executed with prompt:", prompt)
+    
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    MODEL = "gpt-4o"
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_dir, "cdc_map_fig.png")
+
+    # Open the image file and encode it as a base64 string
+    def encode_image(file_path):
+        with open(file_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
+
+    base64_image = encode_image(file_path)
+    
+    #result_string = f"{prompt}"
+    result_string = f"Given the heat map shows the incidence of {conditions_string}, \
+        preface the response with a few sentences about {conditions_string}. {prompt}"
+
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that responds in Markdown."},
+            {"role": "user", "content": [
+                {"type": "text", "text": result_string},
+                {"type": "image_url", "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"}
+                }
+            ]}
+        ],
+        temperature=0.0,
+    )
+    
+    # Correctly access the response content
+    message_content  = response.choices[0].message.content
+    return message_content
+
+### OPENAI 3 - Pass data frame to OpenAI
+def call_openai_3(prompt, dataframe):
+    conditions_string = ", ".join(disease_list)  # Get the current disease
+    # Function logic to interact with OpenAI API
+    print("Function call_openai_3 executed with prompt:", prompt)
+    
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    MODEL = "gpt-4o"
+    
+    # Convert DataFrame to JSON string
+    dataframe_json = dataframe.to_json(orient='split')
+    
+    result_string = f"Given the data frame shows the incidence of {conditions_string}, \
+        preface the response with a few sentences about {conditions_string}. {prompt} \
+        \nHere is the data:\n{dataframe_json}"
+    
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that responds in Markdown."},
+            {"role": "user", "content": result_string}
+        ],
+        temperature=0.0,
+    )
+    
+    # Correctly access the response content
+    message_content = response.choices[0].message.content
+    return message_content
+
+
+
+def calculate_county_rank(cdc_df, conditions=[], fips=[]):
     global sorted_fips
+    global disease_list
+    global full_table
     ranked_df_par = cdc_df.copy(deep=True)
 
-    result_ids = [calculate_by_condition.remote(conditions[i],ranked_df_par,use_quartile) for i in range(0,len(conditions))]
+
+    result_ids = [calculate_by_condition.remote(conditions[i], ranked_df_par, use_quartile) for i in range(len(conditions))]
     results = ray.get(result_ids)
     conditions_checked = len(results)
+    # SAVE CONDITIONS TO GLOBAL VARIABLE
+    if conditions_checked > 0:
+        disease_list = conditions
     return_df = pd.DataFrame()
-    for i in range(conditions_checked):
-        return_df = return_df.append(results[i])
+    
+    # Use pd.concat with the correct syntax for the list comprehension
+    return_df = pd.concat([pd.DataFrame(results[i]) for i in range(conditions_checked)], ignore_index=True)
+    
     #print(f'length of combined results {len(return_df)}')
     #print(results)
-    shortened_ranked_df = return_df[['fips','measure_id','Rank']]
-    pivoted_shortened_ranked_df = shortened_ranked_df.pivot(index='fips',columns='measure_id',values='Rank')
+    shortened_ranked_df = return_df[['fips', 'measure_id', 'Rank']]
+    pivoted_shortened_ranked_df = shortened_ranked_df.pivot(index='fips', columns='measure_id', values='Rank')
     just_locations = pd.DataFrame()
+    
     # Adding the .loc keeps from getting a copy slice warning
-    just_locations.loc[:,'fips'] = return_df.loc[:,'fips']
-    just_locations.loc[:,'State'] = return_df.loc[:,'state']
-    just_locations.loc[:,'County'] = return_df.loc[:,'county']
-    just_locations.loc[:,'Population'] = return_df.loc[:,'population']
-    #just_locations.loc[:,'value'] = ranked_df.loc[:,'value']
-    ranked_df_par = just_locations.merge(pivoted_shortened_ranked_df,left_on='fips',right_on='fips',how='left')
-    ranked_df_par.insert(4,'Rank',round(ranked_df_par[conditions].sum(axis=1)/len(conditions),1))
-    ranked_df_par.drop_duplicates(subset='fips',inplace=True) # default keep = first
-    #ranked_df_par['Rank'] = round(ranked_df_par[conditions].sum(axis=1)/len(conditions),1)
+    just_locations.loc[:, 'fips'] = return_df.loc[:, 'fips']
+    just_locations.loc[:, 'State'] = return_df.loc[:, 'state']
+    just_locations.loc[:, 'County'] = return_df.loc[:, 'county']
+    just_locations.loc[:, 'Population'] = return_df.loc[:, 'population']
+    #just_locations.loc[:, 'value'] = ranked_df.loc[:, 'value']
+    
+    ranked_df_par = just_locations.merge(pivoted_shortened_ranked_df, left_on='fips', right_on='fips', how='left')
+    ranked_df_par.insert(4, 'Rank', round(ranked_df_par[conditions].sum(axis=1) / len(conditions), 1))
+    ranked_df_par.drop_duplicates(subset='fips', inplace=True)  # default keep = first
+    # SAVE THE TABLE GLOBALLY FOR OPENAI
+    full_table = ranked_df_par.drop(columns=['fips'])
+    print(full_table.head())
+    #ranked_df_par['Rank'] = round(ranked_df_par[conditions].sum(axis=1) / len(conditions), 1)
     #print(ranked_df_par)
-    return(ranked_df_par)
+    return ranked_df_par
 
 
 def build_map(selectedData,conditions=[],states=[]):
@@ -357,7 +521,7 @@ def build_map(selectedData,conditions=[],states=[]):
         locations='fips',
         color='Rank',
         range_color=rangecolor_list,
-        color_continuous_scale="Viridis",
+        color_continuous_scale="Spectral_r",
         scope="usa",
         labels={'Rank':'Rank'}, # TEMPORARY
         template='plotly_dark',
@@ -379,11 +543,14 @@ def build_map(selectedData,conditions=[],states=[]):
     #print('build_map completed')
     return fig,returned_df
 
-app = dash.Dash()
+#app = dash.Dash()
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+
 
 app.layout = html.Div(children=[
     dcc.Tabs([
-    dcc.Tab(label="2019 CDC Places Ranking by County",children=[
+    dcc.Tab(label="2021 CDC Places Ranking by County (2024 Release, FL=2019 data)",children=[
     html.Div(children=[
         html.Div(children=[
             html.Br(),
@@ -398,7 +565,7 @@ app.layout = html.Div(children=[
             html.Label('Select Condition(s)',style=control_labels),
             dcc.Checklist(id='conditions', options=conditions_display,
             #value=['ARTHRITIS'],
-            value=['CSMOKING','DIABETES','MHLTH'],
+            value=['COPD'],
             #value=['ARTHRITIS','OBESITY','DIABETES','STROKE','MAMMOUSE','CASTHMA','BINGE','CSMOKING'],
             #value=['ARTHRITIS','OBESITY','DIABETES','STROKE','MAMMOUSE','CASTHMA','BINGE','CSMOKING','LPA','SLEEP','DENTAL','PHLTH'],
             labelStyle = dict(display='block'),style=disease)]),
@@ -411,8 +578,80 @@ app.layout = html.Div(children=[
             ,labelStyle = dict(display='block'),style=state),
         html.Button('Update',id='update_button',n_clicks=1,style=button1),
         html.Button('None',id='none_button',n_clicks=0,style=button2),
-        html.Button('All',id='all_button',n_clicks=0,style=button2)]
+        html.Button('All States',id='all_button',n_clicks=0,style=button2),
+        html.Button('Auto AI',id='ai_button',n_clicks=0,style=button2),
+        html.Button('Map AI', id='ai_button2', n_clicks=0, style=button2),
+        html.Button('Table AI', id='ai_button3', n_clicks=0, style=button2),
+        #dcc.Store(id='ai_button_click_store', data={'last_n_clicks': 0}),
+        dbc.Popover(
+            [
+                dbc.PopoverHeader("AI Response"),
+                dbc.PopoverBody([
+                    html.Div(id='popover-content', style=popover_container),
+                    html.Button('Close', id='close-popover', n_clicks=0, className='mt-2')
+                ])
+            ],
+            id='ai-popover',
+            target='ai_button',
+            placement='right',
+            is_open=False
+        ),
+
+        # New Popover for the second AI button
+        dbc.Popover(
+            [
+                dbc.PopoverHeader("AI Response"),
+                dbc.PopoverBody([
+                    html.Div(id='popover-content2', style=popover_container),
+                    html.Button('Close', id='close-popover2', n_clicks=0, className='mt-2')
+                ])
+            ],
+            id='ai-popover2',
+            target='ai_button2',
+            placement='right',
+            is_open=False
+        ),
+
+        # Modal for user input
+        dbc.Modal(
+            [
+                dbc.ModalHeader("Enter your prompt"),
+                dbc.ModalBody(dcc.Textarea(id='user-prompt', style={'width': '100%', 'height': '200px'})),
+                dbc.ModalFooter(
+                    dbc.Button('Submit', id='submit-prompt', n_clicks=0)
+                ),
+            ],
+            id='prompt-modal',
+            is_open=False,
+        ),
+        # New Popover for the third AI button (Table AI)
+        dbc.Popover(
+            [
+                dbc.PopoverHeader("AI Response"),
+                dbc.PopoverBody([
+                    html.Div(id='popover-content3', style=popover_container),
+                    html.Button('Close', id='close-popover3', n_clicks=0, className='mt-2')
+                ])
+            ],
+            id='ai-popover3',
+            target='ai_button3',
+            placement='right',
+            is_open=False
+        ),
+
+        # Modal for user input (for Table AI)
+        dbc.Modal(
+            [
+                dbc.ModalHeader("Enter your prompt"),
+                dbc.ModalBody(dcc.Textarea(id='user-prompt3', style={'width': '100%', 'height': '200px'})),
+                dbc.ModalFooter(
+                    dbc.Button('Submit', id='submit-prompt3', n_clicks=0)
+                ),
+            ],
+            id='prompt-modal3',
+            is_open=False,
         )
+    ])
     ],style=controls),
     html.Div(children=[
     dcc.Graph(id='indicator_map_chart')],
@@ -468,6 +707,7 @@ def show_map(conditions,states,quantile,n_clicks,non_button,all_button,selectedD
         ticktext_list=['1','2','3','4','5']
     if conditions == None:
         fig,returned_df = build_map(['ARTHRITIS'])
+        fig.write_image("cdc_map_fig.png")
         data = returned_df.to_dict(orient='records')
         columns =  [{"name": i, "id": i,} for i in (returned_df.columns)]
         return fig,dash_table.DataTable(id='cdc_data_table',data=data, columns=columns,sort_action='native',fixed_rows={'headers':True},
@@ -496,6 +736,7 @@ def show_map(conditions,states,quantile,n_clicks,non_button,all_button,selectedD
     data = returned_df.to_dict(orient='records')
     columns =  [{"name": i, "id": i,} for i in (returned_df.columns)]
     #print(time.asctime())
+    fig.write_image("cdc_map_fig.png")
     return fig,dash_table.DataTable(id='cdc_data_table',data=data, columns=columns,sort_action='native',
                                                                     export_format='csv',
                                                                     fixed_rows={'headers':True},
@@ -522,7 +763,159 @@ def show_map(conditions,states,quantile,n_clicks,non_button,all_button,selectedD
                                                                         ),states_list_checked
 
 
+### CALLBACK FOR AI BUTTON
+""" @app.callback(
+    Output('ai_button_click_store', 'data'),
+    Input('ai_button', 'n_clicks'),
+    State('ai_button_click_store', 'data')
+)
+def execute_ai_function(n_clicks, store_data):
+    if n_clicks > store_data['last_n_clicks']:
+        call_openai_1()
+        store_data['last_n_clicks'] = n_clicks
+    return store_data
+ """
+
+# Define the callback to show or hide the popover
+@app.callback(
+    [Output('ai-popover', 'is_open'),
+     Output('popover-content', 'children')],
+    [Input('ai_button', 'n_clicks'),
+     Input('close-popover', 'n_clicks')],
+    [State('ai-popover', 'is_open')]
+)
+def toggle_popover(ai_n_clicks, close_n_clicks, is_open):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        return is_open, dash.no_update
+
+    trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger == 'ai_button':
+        if ai_n_clicks > 0:
+            # Call the OpenAI function and get the response
+            ai_response = call_openai_1()
+            #print(f"AI response: {ai_response}")
+
+            return True, ai_response
+    
+    elif trigger == 'close-popover':
+        return False, dash.no_update
+
+    return is_open, dash.no_update
+
+@app.callback(
+    Output('prompt-modal', 'is_open'),
+    [Input('ai_button2', 'n_clicks'),
+     Input('submit-prompt', 'n_clicks')],
+    [State('prompt-modal', 'is_open')]
+)
+def toggle_modal(ai_n_clicks2, submit_n_clicks, is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+    trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f"Modal triggered by: {trigger}")
+
+    if trigger == 'ai_button2' and ai_n_clicks2 > 0:
+        return True
+    elif trigger == 'submit-prompt' and submit_n_clicks > 0:
+        return False
+    return is_open
+
+@app.callback(
+    [Output('ai-popover2', 'is_open'),
+     Output('popover-content2', 'children')],
+    [Input('submit-prompt', 'n_clicks'),
+     Input('close-popover2', 'n_clicks')],
+    [State('user-prompt', 'value'),
+     State('ai-popover2', 'is_open')]
+)
+def handle_user_prompt(submit_n_clicks, close_n_clicks, user_prompt, is_open):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        print("Popover handle not triggered")
+        return is_open, dash.no_update
+
+    trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f"Popover triggered by: {trigger}")
+
+    if trigger == 'submit-prompt':
+        if submit_n_clicks > 0:
+            print(f"User prompt: {user_prompt}")
+            if user_prompt:
+                ai_response = call_openai_2(user_prompt)
+                print(f"AI response: {ai_response}")
+                return True, ai_response  # Return just the response content
+    
+    elif trigger == 'close-popover2':
+        print("Close popover2 triggered")
+        return False, dash.no_update
+
+    return is_open, dash.no_update
+
+
+@app.callback(
+    Output('prompt-modal3', 'is_open'),
+    [Input('ai_button3', 'n_clicks'),
+     Input('submit-prompt3', 'n_clicks')],
+    [State('prompt-modal3', 'is_open')]
+)
+def toggle_modal3(ai_n_clicks3, submit_n_clicks, is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        print("Modal toggle not triggered")
+        return is_open
+    trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f"Modal triggered by: {trigger}")
+
+    if trigger == 'ai_button3' and ai_n_clicks3 > 0:
+        return True
+    elif trigger == 'submit-prompt3' and submit_n_clicks > 0:
+        return False
+    return is_open
+
+@app.callback(
+    [Output('ai-popover3', 'is_open'),
+     Output('popover-content3', 'children')],
+    [Input('submit-prompt3', 'n_clicks'),
+     Input('close-popover3', 'n_clicks')],
+    [State('user-prompt3', 'value'),
+     State('ai-popover3', 'is_open')]
+)
+def handle_user_prompt3(submit_n_clicks, close_n_clicks, user_prompt, is_open):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        print("Popover handle not triggered")
+        return is_open, dash.no_update
+
+    trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f"Popover triggered by: {trigger}")
+
+    if trigger == 'submit-prompt3':
+        if submit_n_clicks > 0:
+            print(f"User prompt: {user_prompt}")
+            if user_prompt:
+                ai_response = call_openai_3(user_prompt, full_table)
+                print(f"AI response: {ai_response}")
+                return True, html.Div([
+                    html.Div(ai_response, style={'whiteSpace': 'pre-wrap', 'fontFamily': 'Courier, "Courier New", monospace'}),
+                    html.Button('Close', id='close-popover3', n_clicks=0, className='mt-2')
+                ])
+    
+    elif trigger == 'close-popover3':
+        print("Close popover3 triggered")
+        return False, dash.no_update
+
+    return is_open, dash.no_update
+
+
 if __name__ == "__main__":
     #print(time.asctime())
-    ray.init(num_cpus = 12)
-    app.run_server()
+    ray.init(num_cpus = 10)
+    app.run_server(debug=False, port=8051)  # Change the port number as needed
+    #app.run_server()
+
