@@ -38,9 +38,11 @@ This project visualizes CDC chronic disease prevalence across the U.S. using a *
 
 ```
 chronic-insight/
-├── dash7par.py             # Main Dash app with Ray and OpenAI integration
-└── assets/
-    └── styles.css     # Optional Dash customization
+├── app.py
+├── assets/
+│   └── styles.css
+└── data/
+    └── us_counties.geojson   # or whatever filename you're using
 ```
 
 
