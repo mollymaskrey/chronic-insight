@@ -33,4 +33,37 @@ This project visualizes CDC chronic disease prevalence across the U.S. using a *
 ---
 
 ## 📦 Folder Structure
+cdc-disease-maps/
+├── app.py # Main Dash app with AI + UI
+├── query_interface.py # OpenAI language model handler
+├── map_generator.py # Ray parallel compute functions
+├── utils/ # Helpers for data loading, scaling, parsing
+├── data/ # Publicly available CDC chronic disease datasets
+└── assets/ # Dash CSS customization
 
+
+
+---
+
+## 🧠 Example AI Queries
+
+You can ask the app:
+- *"Which states have the highest rates of COPD?"*
+- *"Compare diabetes rates in Texas and California."*
+- *"What region has the highest cardiovascular risk?"*
+
+The system uses OpenAI to interpret, map, and return visual and textual insights.
+
+---
+
+## ⚡ Setup Instructions
+
+Install dependencies:
+```bash
+pip install dash plotly ray openai pandas geopandas
+
+## ⚡ Run The App
+python app.py
+
+
+You’ll need an OpenAI API key—store it as an environment variable OPENAI_API_KEY.
