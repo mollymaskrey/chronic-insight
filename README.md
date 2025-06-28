@@ -42,7 +42,7 @@ chronic-insight/
 ├── assets/
 │   └── styles.css
 └── data/
-    └── us_counties.geojson   # or whatever filename you're using
+    └── cdc_2021_summary.csv   # or whatever filename you're using
 ```
 
 
